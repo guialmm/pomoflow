@@ -3,6 +3,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.text import Text
 
+from pomoflow.notifications import notify
 from pomoflow.timer import run_timer
 
 console = Console()
@@ -45,6 +46,12 @@ def run_live_timer(duration_minutes: int, task: str) -> tuple[bool, int]:
             duration_minutes,
             on_tick=lambda e, t: live.update(_render(e, t, task)),
         )
+
+    label = task if task else "Pomodoro"
+    if completed:
+        notify("pomoflow", f"{label} complete! Take a break.")
+    else:
+        notify("pomoflow", f"{label} interrupted.")
 
     return completed, elapsed
 
