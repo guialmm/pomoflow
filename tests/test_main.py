@@ -32,10 +32,21 @@ def test_start_interrupted():
     assert result.exit_code == 1
 
 
+def test_start_uses_config_default():
+    with (
+        patch("pomoflow.main.load_config", return_value={"pomodoro_minutes": 30}),
+        patch("pomoflow.main.run_live_timer", return_value=(True, 1800)) as mock,
+        patch("pomoflow.main.record_session"),
+    ):
+        runner.invoke(app, ["start"])
+    mock.assert_called_once_with(30, "")
+
+
 def test_start_with_task():
     with (
         patch("pomoflow.main.run_live_timer", return_value=(True, 1500)) as mock,
         patch("pomoflow.main.record_session"),
+        patch("pomoflow.main.load_config", return_value={"pomodoro_minutes": 25}),
     ):
         runner.invoke(app, ["start", "--task", "Write docs"])
     mock.assert_called_once_with(25, "Write docs")
@@ -89,3 +100,26 @@ def test_history_shows_entries(tmp_path, monkeypatch):
     assert result.exit_code == 0
     assert "Review PR" in result.output
     assert "done" in result.output
+
+
+def test_config_shows_current(tmp_path, monkeypatch):
+    monkeypatch.setattr("pomoflow.config._CONFIG_FILE", tmp_path / "config.json")
+    result = runner.invoke(app, ["config"])
+    assert result.exit_code == 0
+    assert "25" in result.output
+
+
+def test_config_saves_value(tmp_path, monkeypatch):
+    monkeypatch.setattr("pomoflow.config._CONFIG_FILE", tmp_path / "config.json")
+    result = runner.invoke(app, ["config", "--pomodoro", "50"])
+    assert result.exit_code == 0
+    assert "50" in result.output
+
+
+def test_config_reset(tmp_path, monkeypatch):
+    cfg_file = tmp_path / "config.json"
+    monkeypatch.setattr("pomoflow.config._CONFIG_FILE", cfg_file)
+    runner.invoke(app, ["config", "--pomodoro", "99"])
+    result = runner.invoke(app, ["config", "--reset"])
+    assert result.exit_code == 0
+    assert "reset" in result.output.lower()
