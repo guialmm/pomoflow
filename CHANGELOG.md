@@ -18,3 +18,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `stats` command: summarizes sessions, total focus time, daily breakdown, and streak for the last N days
 - User configuration persisted to `~/.pomoflow/config.json` (pomodoro, short break, long break durations)
 - `config` command: view and update timer durations, `--reset` restores defaults
+- Terminal bell (`beep`) on session completion — works in any terminal without dependencies
