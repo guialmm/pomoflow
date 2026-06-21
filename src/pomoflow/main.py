@@ -1,6 +1,7 @@
 import typer
 
 from pomoflow import __version__
+from pomoflow.display import print_summary, run_live_timer
 
 app = typer.Typer(
     name="pomoflow",
@@ -9,7 +10,7 @@ app = typer.Typer(
 )
 
 
-def version_callback(value: bool) -> None:
+def _version_callback(value: bool) -> None:
     if value:
         typer.echo(f"pomoflow {__version__}")
         raise typer.Exit()
@@ -21,7 +22,7 @@ def main(
         None,
         "--version",
         "-v",
-        callback=version_callback,
+        callback=_version_callback,
         is_eager=True,
         help="Show version and exit.",
     ),
@@ -31,8 +32,10 @@ def main(
 
 @app.command()
 def start(
-    minutes: int = typer.Option(25, "--minutes", "-m", help="Session duration in minutes."),
+    minutes: int = typer.Option(25, "--minutes", "-m", help="Duration in minutes."),
     task: str = typer.Option("", "--task", "-t", help="Label for this session."),
 ) -> None:
     """Start a Pomodoro session."""
-    typer.echo(f"Starting {minutes}-minute session" + (f": {task}" if task else "") + "...")
+    completed, elapsed = run_live_timer(minutes, task)
+    print_summary(completed, elapsed, task)
+    raise typer.Exit(code=0 if completed else 1)

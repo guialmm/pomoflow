@@ -1,0 +1,6 @@
+# Default owner for all files
+* @guialmm
+
+# CI/CD and tooling changes always need extra care
+.github/ @guialmm
+pyproject.toml @guialmm
