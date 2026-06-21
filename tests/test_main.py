@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from typer.testing import CliRunner
 
 from pomoflow import __version__
@@ -12,19 +14,25 @@ def test_version():
     assert __version__ in result.output
 
 
-def test_start_default():
-    result = runner.invoke(app, ["start"])
+def test_start_completes():
+    with patch("pomoflow.main.run_live_timer", return_value=(True, 1500)):
+        result = runner.invoke(app, ["start"])
     assert result.exit_code == 0
-    assert "25-minute" in result.output
+
+
+def test_start_interrupted():
+    with patch("pomoflow.main.run_live_timer", return_value=(False, 300)):
+        result = runner.invoke(app, ["start"])
+    assert result.exit_code == 1
 
 
 def test_start_with_task():
-    result = runner.invoke(app, ["start", "--task", "Write tests"])
-    assert result.exit_code == 0
-    assert "Write tests" in result.output
+    with patch("pomoflow.main.run_live_timer", return_value=(True, 1500)) as mock:
+        runner.invoke(app, ["start", "--task", "Write docs"])
+    mock.assert_called_once_with(25, "Write docs")
 
 
 def test_start_custom_duration():
-    result = runner.invoke(app, ["start", "--minutes", "45"])
-    assert result.exit_code == 0
-    assert "45-minute" in result.output
+    with patch("pomoflow.main.run_live_timer", return_value=(True, 2700)) as mock:
+        runner.invoke(app, ["start", "--minutes", "45"])
+    mock.assert_called_once_with(45, "")
