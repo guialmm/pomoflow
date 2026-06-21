@@ -15,3 +15,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Desktop notifications (`notifications.py`) on session complete or interrupt — macOS, Linux, and Windows supported with silent fallback
 - Session history persisted to `~/.pomoflow/history.json` after every session
 - `history` command: displays recent sessions in a Rich table with date, task, duration, and status
+- `stats` command: summarizes sessions, total focus time, daily breakdown, and streak for the last N days
