@@ -2,7 +2,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-
 _DATA_DIR = Path.home() / ".pomoflow"
 _HISTORY_FILE = _DATA_DIR / "history.json"
 
