@@ -2,6 +2,11 @@ import platform
 import subprocess
 
 
+def beep() -> None:
+    """Ring the terminal bell. Silent if the terminal or system mutes it."""
+    print("\a", end="", flush=True)
+
+
 def notify(title: str, message: str) -> None:
     """Send a desktop notification. Fails silently if unsupported."""
     system = platform.system()

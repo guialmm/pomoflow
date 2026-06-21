@@ -5,16 +5,17 @@ build-backend = "hatchling.build"
 [project]
 name = "pomoflow"
 version = "0.1.0"
-description = "A focused Pomodoro CLI timer for developers"
+description = "A Pomodoro timer for the terminal — track study sessions, build streaks, and stay focused"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "guialmm", email = "guialm211004@gmail.com" }]
 requires-python = ">=3.11"
-keywords = ["pomodoro", "timer", "cli", "productivity", "focus"]
+keywords = ["pomodoro", "timer", "cli", "productivity", "focus", "study", "student"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
-    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Education",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
