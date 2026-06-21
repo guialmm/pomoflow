@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, Square, SkipForward } from 'lucide-react'
+import { Play, Pause, RotateCcw, Square, SkipForward, PictureInPicture2 } from 'lucide-react'
 import { useTimerContext } from '../context/TimerContext'
 import type { TimerMode } from '../context/TimerContext'
 
@@ -21,7 +21,7 @@ const MODE_COLORS: Record<TimerMode, string> = {
 }
 
 export default function Timer() {
-  const { mode, phase, elapsed, remaining, total, task, sessionCount, setTask, start, pause, resume, stop, skipBreak } = useTimerContext()
+  const { mode, phase, elapsed, remaining, total, task, sessionCount, pipSupported, setTask, start, pause, resume, stop, skipBreak, togglePiP } = useTimerContext()
 
   const pct = total > 0 ? elapsed / total : 0
   const radius = 88
@@ -34,6 +34,20 @@ export default function Timer() {
 
   return (
     <div className="flex flex-col items-center gap-6 py-8 px-4">
+      {/* pip button */}
+      {pipSupported && isActive && (
+        <div className="self-end">
+          <button
+            onClick={togglePiP}
+            title="Pop out timer"
+            className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 text-xs transition px-2 py-1 rounded-lg hover:bg-slate-800"
+          >
+            <PictureInPicture2 size={14} />
+            Pop out
+          </button>
+        </div>
+      )}
+
       {/* session count */}
       <div className="flex items-center gap-1.5">
         {Array.from({ length: 4 }).map((_, i) => (
