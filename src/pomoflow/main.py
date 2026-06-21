@@ -5,6 +5,7 @@ from rich.table import Table
 from pomoflow import __version__
 from pomoflow.display import print_summary, run_live_timer
 from pomoflow.history import load_history, record_session
+from pomoflow.stats import compute_stats
 
 app = typer.Typer(
     name="pomoflow",
@@ -78,3 +79,45 @@ def history(
         table.add_row(date, task_label, duration, status)
 
     console.print(table)
+
+
+@app.command()
+def stats(
+    days: int = typer.Option(7, "--days", "-d", help="Number of days to summarize."),
+) -> None:
+    """Show focus statistics for the last N days."""
+    console = Console()
+    data = compute_stats(days)
+
+    if data["total_sessions"] == 0:
+        console.print(f"[dim]No sessions in the last {days} days.[/dim]")
+        return
+
+    total_m = data["total_focus_seconds"] // 60
+    completed = data["completed_sessions"]
+    total = data["total_sessions"]
+    streak = data["streak_days"]
+
+    console.print()
+    console.print(f"[bold cyan]Last {days} days[/bold cyan]")
+    console.print(f"  Sessions : [white]{completed}/{total} completed[/white]")
+    console.print(f"  Focus    : [white]{total_m}m total[/white]")
+    if streak:
+        label = "days" if streak != 1 else "day"
+        console.print(f"  Streak   : [green]{streak} {label}[/green]")
+    else:
+        console.print("  Streak   : [dim]none[/dim]")
+
+    if data["by_day"]:
+        console.print()
+        table = Table(border_style="cyan", show_header=True, show_lines=False)
+        table.add_column("Date", style="dim", no_wrap=True)
+        table.add_column("Sessions", justify="right")
+        table.add_column("Focus", justify="right")
+
+        for day in sorted(data["by_day"], reverse=True):
+            entry = data["by_day"][day]
+            focus_m = entry["seconds"] // 60
+            table.add_row(str(day), str(entry["sessions"]), f"{focus_m}m")
+
+        console.print(table)
