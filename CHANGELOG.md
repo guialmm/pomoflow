@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-21
+
 ### Added
 
 - Core countdown engine (`timer.py`) with 0.5s tick loop and clean interrupt handling
