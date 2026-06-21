@@ -1,7 +1,7 @@
 import time
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable
 
 
 @dataclass
@@ -42,7 +42,9 @@ def run_timer(
         return False, elapsed
 
 
-def make_session(duration_minutes: int, task: str, elapsed: int, completed: bool) -> SessionResult:
+def make_session(
+    duration_minutes: int, task: str, elapsed: int, completed: bool
+) -> SessionResult:
     return SessionResult(
         duration_minutes=duration_minutes,
         task=task,
