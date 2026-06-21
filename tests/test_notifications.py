@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pomoflow.notifications import notify
+from pomoflow.notifications import beep, notify
 
 
 @pytest.fixture(autouse=True)
@@ -49,3 +49,13 @@ class TestUnsupportedPlatform:
         with patch("subprocess.run") as mock_run:
             notify("title", "message")
         mock_run.assert_not_called()
+
+
+class TestBeep:
+    def test_prints_bell_character(self):
+        with patch("builtins.print") as mock_print:
+            beep()
+        mock_print.assert_called_once_with("\a", end="", flush=True)
+
+    def test_beep_does_not_raise(self):
+        beep()
