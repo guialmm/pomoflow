@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Play, Pause, RotateCcw, Square } from 'lucide-react'
-import { useTimer } from '../hooks/useTimer'
-import { saveSession, loadConfig } from '../lib/storage'
+import { Play, Pause, RotateCcw, Square, SkipForward, PictureInPicture2 } from 'lucide-react'
+import { useTimerContext } from '../context/TimerContext'
+import type { TimerMode } from '../context/TimerContext'
 
 function fmt(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -9,72 +8,79 @@ function fmt(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export default function Timer() {
-  const config = loadConfig()
-  const [task, setTask] = useState('')
-  const [startedAt, setStartedAt] = useState('')
-  const { state, elapsed, remaining, start, pause, resume, reset } = useTimer(config.pomodoro_minutes)
+const MODE_LABELS: Record<TimerMode, string> = {
+  'pomodoro': 'Focus',
+  'short-break': 'Short break',
+  'long-break': 'Long break',
+}
 
-  const total = config.pomodoro_minutes * 60
+const MODE_COLORS: Record<TimerMode, string> = {
+  'pomodoro': '#06b6d4',
+  'short-break': '#22c55e',
+  'long-break': '#a78bfa',
+}
+
+export default function Timer() {
+  const { mode, phase, elapsed, remaining, total, task, sessionCount, pipSupported, setTask, start, pause, resume, stop, skipBreak, togglePiP } = useTimerContext()
+
   const pct = total > 0 ? elapsed / total : 0
   const radius = 88
   const circ = 2 * Math.PI * radius
   const dashOffset = circ * (1 - pct)
-
-  useEffect(() => {
-    if (state === 'done') {
-      saveSession({
-        started_at: startedAt,
-        duration_minutes: config.pomodoro_minutes,
-        elapsed_seconds: elapsed,
-        completed: true,
-        task,
-      })
-      new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA').play().catch(() => {})
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('pomoflow', { body: task ? `${task} complete!` : 'Session complete! Take a break.' })
-      }
-    }
-  }, [state])
-
-  const handleStart = () => {
-    setStartedAt(new Date().toISOString())
-    start()
-  }
-
-  const handleStop = () => {
-    if (state === 'running' || state === 'paused') {
-      saveSession({
-        started_at: startedAt,
-        duration_minutes: config.pomodoro_minutes,
-        elapsed_seconds: elapsed,
-        completed: false,
-        task,
-      })
-    }
-    reset()
-  }
-
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
-  }, [])
-
-  const isActive = state === 'running' || state === 'paused'
-  const isDone = state === 'done'
+  const color = MODE_COLORS[mode]
+  const isActive = phase === 'running' || phase === 'paused'
+  const isDone = phase === 'done'
+  const isBreak = mode !== 'pomodoro'
 
   return (
-    <div className="flex flex-col items-center gap-8 py-10 px-4">
+    <div className="flex flex-col items-center gap-6 py-8 px-4">
+      {/* pip button */}
+      {pipSupported && isActive && (
+        <div className="self-end">
+          <button
+            onClick={togglePiP}
+            title="Pop out timer"
+            className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 text-xs transition px-2 py-1 rounded-lg hover:bg-slate-800"
+          >
+            <PictureInPicture2 size={14} />
+            Pop out
+          </button>
+        </div>
+      )}
+
+      {/* session count */}
+      <div className="flex items-center gap-1.5">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className={`w-2 h-2 rounded-full transition-colors ${
+              i < (sessionCount % 4) || (sessionCount % 4 === 0 && sessionCount > 0 && i === 3)
+                ? 'bg-cyan-400'
+                : 'bg-slate-700'
+            }`}
+          />
+        ))}
+        <span className="text-slate-500 text-xs ml-1">
+          {sessionCount} {sessionCount === 1 ? 'session' : 'sessions'}
+        </span>
+      </div>
+
+      {/* mode label */}
+      <span className="text-sm font-medium" style={{ color }}>
+        {MODE_LABELS[mode]}
+      </span>
+
       {/* task input */}
-      <input
-        type="text"
-        placeholder="What are you working on?"
-        value={task}
-        onChange={e => setTask(e.target.value)}
-        disabled={isActive || isDone}
-        className="w-full max-w-sm bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 text-center focus:outline-none focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-      />
+      {!isBreak && (
+        <input
+          type="text"
+          placeholder="What are you working on?"
+          value={task}
+          onChange={e => setTask(e.target.value)}
+          disabled={isActive || isDone}
+          className="w-full max-w-sm bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 text-center focus:outline-none focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        />
+      )}
 
       {/* ring */}
       <div className="relative flex items-center justify-center">
@@ -82,7 +88,7 @@ export default function Timer() {
           <circle cx="110" cy="110" r={radius} fill="none" stroke="#1e293b" strokeWidth="10" />
           <circle
             cx="110" cy="110" r={radius} fill="none"
-            stroke={isDone ? '#22c55e' : '#06b6d4'}
+            stroke={isDone ? '#22c55e' : color}
             strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={circ}
@@ -95,23 +101,24 @@ export default function Timer() {
             {fmt(remaining)}
           </span>
           <span className="text-sm text-slate-400 mt-1">
-            {isDone ? 'done' : state === 'idle' ? `${config.pomodoro_minutes} min` : state}
+            {isDone ? 'done' : phase === 'idle' ? `${Math.floor(total / 60)} min` : phase}
           </span>
         </div>
       </div>
 
       {/* controls */}
-      <div className="flex gap-4">
-        {state === 'idle' && (
+      <div className="flex gap-3">
+        {phase === 'idle' && (
           <button
-            onClick={handleStart}
-            className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-8 py-3 rounded-xl transition"
+            onClick={start}
+            className="flex items-center gap-2 text-slate-900 font-semibold px-8 py-3 rounded-xl transition"
+            style={{ backgroundColor: color }}
           >
             <Play size={18} />
-            Start
+            {isBreak ? 'Start break' : 'Start'}
           </button>
         )}
-        {state === 'running' && (
+        {phase === 'running' && (
           <>
             <button
               onClick={pause}
@@ -121,45 +128,58 @@ export default function Timer() {
               Pause
             </button>
             <button
-              onClick={handleStop}
+              onClick={stop}
               className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-400 px-4 py-3 rounded-xl transition"
             >
               <Square size={16} />
             </button>
           </>
         )}
-        {state === 'paused' && (
+        {phase === 'paused' && (
           <>
             <button
               onClick={resume}
-              className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-6 py-3 rounded-xl transition"
+              className="flex items-center gap-2 text-slate-900 font-semibold px-6 py-3 rounded-xl transition"
+              style={{ backgroundColor: color }}
             >
               <Play size={18} />
               Resume
             </button>
             <button
-              onClick={handleStop}
+              onClick={stop}
               className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-400 px-4 py-3 rounded-xl transition"
             >
               <Square size={16} />
             </button>
           </>
         )}
-        {isDone && (
+        {isDone && isBreak && (
           <button
-            onClick={reset}
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-400 text-slate-900 font-semibold px-8 py-3 rounded-xl transition"
+            onClick={skipBreak}
+            className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 px-5 py-3 rounded-xl transition text-sm"
           >
-            <RotateCcw size={18} />
-            New session
+            <SkipForward size={16} />
+            Skip break
           </button>
+        )}
+        {isDone && !isBreak && (
+          <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
+            <RotateCcw size={16} />
+            Starting break…
+          </div>
         )}
       </div>
 
-      {isDone && (
-        <p className="text-green-400 text-sm font-medium">
-          {task ? `${task} complete!` : 'Session complete!'} Take a break.
-        </p>
+      {isBreak && phase === 'idle' && (
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={skipBreak}
+            className="text-slate-500 hover:text-slate-300 text-sm transition flex items-center gap-1"
+          >
+            <SkipForward size={14} />
+            Skip break
+          </button>
+        </div>
       )}
     </div>
   )
