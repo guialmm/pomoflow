@@ -48,3 +48,7 @@ Thumbs.db
 
 # Project-specific
 pomoflow_history.json
+
+# Web (Node)
+web/node_modules/
+web/dist/
