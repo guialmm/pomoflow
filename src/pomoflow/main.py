@@ -3,6 +3,7 @@ from rich.console import Console
 from rich.table import Table
 
 from pomoflow import __version__
+from pomoflow.config import DEFAULTS, load_config, save_config
 from pomoflow.display import print_summary, run_live_timer
 from pomoflow.history import load_history, record_session
 from pomoflow.stats import compute_stats
@@ -36,10 +37,12 @@ def main(
 
 @app.command()
 def start(
-    minutes: int = typer.Option(25, "--minutes", "-m", help="Duration in minutes."),
+    minutes: int = typer.Option(None, "--minutes", "-m", help="Duration in minutes."),
     task: str = typer.Option("", "--task", "-t", help="Label for this session."),
 ) -> None:
     """Start a Pomodoro session."""
+    if minutes is None:
+        minutes = load_config()["pomodoro_minutes"]
     completed, elapsed = run_live_timer(minutes, task)
     record_session(minutes, elapsed, completed, task)
     print_summary(completed, elapsed, task)
@@ -121,3 +124,44 @@ def stats(
             table.add_row(str(day), str(entry["sessions"]), f"{focus_m}m")
 
         console.print(table)
+
+
+_OPT_POMODORO = typer.Option(None, "--pomodoro", "-p", help="Pomodoro (min).")
+_OPT_SHORT = typer.Option(None, "--short-break", "-s", help="Short break (min).")
+_OPT_LONG = typer.Option(None, "--long-break", "-l", help="Long break (min).")
+_OPT_RESET = typer.Option(False, "--reset", help="Reset to defaults.")
+
+
+@app.command("config")
+def config_cmd(
+    pomodoro: int = _OPT_POMODORO,
+    short_break: int = _OPT_SHORT,
+    long_break: int = _OPT_LONG,
+    reset: bool = _OPT_RESET,
+) -> None:
+    """View or update timer configuration."""
+    console = Console()
+
+    if reset:
+        save_config(dict(DEFAULTS))
+        console.print("[green]Config reset to defaults.[/green]")
+        return
+
+    cfg = load_config()
+
+    if pomodoro is not None:
+        cfg["pomodoro_minutes"] = pomodoro
+    if short_break is not None:
+        cfg["short_break_minutes"] = short_break
+    if long_break is not None:
+        cfg["long_break_minutes"] = long_break
+
+    if any(v is not None for v in (pomodoro, short_break, long_break)):
+        save_config(cfg)
+        console.print("[green]Config saved.[/green]")
+
+    console.print()
+    console.print("[bold cyan]Current configuration[/bold cyan]")
+    console.print(f"  Pomodoro    : [white]{cfg['pomodoro_minutes']} min[/white]")
+    console.print(f"  Short break : [white]{cfg['short_break_minutes']} min[/white]")
+    console.print(f"  Long break  : [white]{cfg['long_break_minutes']} min[/white]")
