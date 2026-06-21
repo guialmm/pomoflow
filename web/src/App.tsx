@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Timer as TimerIcon, History, BarChart2, Settings } from 'lucide-react'
+import { TimerProvider } from './context/TimerContext'
 import TimerView from './components/Timer'
 import HistoryView from './components/History'
 import StatsView from './components/Stats'
 import SettingsView from './components/Settings'
+import MiniTimer from './components/MiniTimer'
 
 type Tab = 'timer' | 'history' | 'stats' | 'settings'
 
@@ -14,7 +16,7 @@ const tabs: { id: Tab; label: string; Icon: typeof TimerIcon }[] = [
   { id: 'settings', label: 'Settings', Icon: Settings },
 ]
 
-export default function App() {
+function Shell() {
   const [tab, setTab] = useState<Tab>('timer')
 
   return (
@@ -29,6 +31,9 @@ export default function App() {
         {tab === 'stats' && <StatsView />}
         {tab === 'settings' && <SettingsView />}
       </main>
+
+      {/* mini timer shown when away from the timer tab */}
+      {tab !== 'timer' && <MiniTimer onNavigate={() => setTab('timer')} />}
 
       <nav className="border-t border-slate-800 bg-slate-900/80 backdrop-blur sticky bottom-0">
         <div className="flex">
@@ -47,5 +52,13 @@ export default function App() {
         </div>
       </nav>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <TimerProvider>
+      <Shell />
+    </TimerProvider>
   )
 }
