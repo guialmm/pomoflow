@@ -31,8 +31,9 @@ def main(
 
 @app.command()
 def start(
-    minutes: int = typer.Option(25, "--minutes", "-m", help="Session duration in minutes."),
+    minutes: int = typer.Option(25, "--minutes", "-m", help="Duration in minutes."),
     task: str = typer.Option("", "--task", "-t", help="Label for this session."),
 ) -> None:
     """Start a Pomodoro session."""
-    typer.echo(f"Starting {minutes}-minute session" + (f": {task}" if task else "") + "...")
+    label = f": {task}" if task else ""
+    typer.echo(f"Starting {minutes}-minute session{label}...")

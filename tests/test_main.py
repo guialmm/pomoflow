@@ -1,7 +1,7 @@
 from typer.testing import CliRunner
 
-from pomoflow.main import app
 from pomoflow import __version__
+from pomoflow.main import app
 
 runner = CliRunner()
 
