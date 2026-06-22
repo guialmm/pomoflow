@@ -6,10 +6,21 @@ export interface Session {
   task: string
 }
 
+export type AlarmSound = 'tones' | 'bell' | 'beep' | 'tick'
+export type Theme = 'dark' | 'light'
+export type Locale = 'en' | 'pt'
+
 export interface Config {
   pomodoro_minutes: number
   short_break_minutes: number
   long_break_minutes: number
+  pomodoros_until_long_break: number
+  auto_start_breaks: boolean
+  auto_start_pomodoros: boolean
+  alarm_sound: AlarmSound
+  alarm_volume: number
+  theme: Theme
+  locale: Locale
 }
 
 const HISTORY_KEY = 'pomoflow:history'
@@ -19,6 +30,13 @@ export const DEFAULT_CONFIG: Config = {
   pomodoro_minutes: 25,
   short_break_minutes: 5,
   long_break_minutes: 15,
+  pomodoros_until_long_break: 4,
+  auto_start_breaks: false,
+  auto_start_pomodoros: false,
+  alarm_sound: 'tones',
+  alarm_volume: 0.7,
+  theme: 'dark',
+  locale: 'en',
 }
 
 export function loadHistory(): Session[] {
