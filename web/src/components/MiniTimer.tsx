@@ -1,17 +1,12 @@
 import { Play, Pause } from 'lucide-react'
 import { useTimerContext } from '../context/TimerContext'
+import { useAppContext } from '../context/AppContext'
 import type { TimerMode } from '../context/TimerContext'
 
 function fmt(seconds: number): string {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
-
-const MODE_LABELS: Record<TimerMode, string> = {
-  'pomodoro': 'Focus',
-  'short-break': 'Short break',
-  'long-break': 'Long break',
 }
 
 const MODE_COLORS: Record<TimerMode, string> = {
@@ -26,10 +21,17 @@ interface Props {
 
 export default function MiniTimer({ onNavigate }: Props) {
   const { mode, phase, remaining, task, pause, resume } = useTimerContext()
+  const { t } = useAppContext()
 
   if (phase === 'idle') return null
 
   const color = MODE_COLORS[mode]
+
+  const MODE_LABELS: Record<TimerMode, string> = {
+    'pomodoro': t.mode_pomodoro,
+    'short-break': t.mode_short_break,
+    'long-break': t.mode_long_break,
+  }
 
   const handleAction = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -40,7 +42,7 @@ export default function MiniTimer({ onNavigate }: Props) {
   return (
     <div
       onClick={onNavigate}
-      className="mx-3 mb-2 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer active:bg-slate-750 transition shadow-lg"
+      className="mx-3 mb-2 bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer transition shadow-lg"
     >
       <div className="flex items-center gap-3 min-w-0">
         <div
@@ -60,9 +62,7 @@ export default function MiniTimer({ onNavigate }: Props) {
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        <span className="text-lg font-mono font-semibold text-slate-100 tabular-nums">
-          {fmt(remaining)}
-        </span>
+        <span className="text-lg font-mono font-semibold text-slate-100 tabular-nums">{fmt(remaining)}</span>
         {(phase === 'running' || phase === 'paused') && (
           <button
             onClick={handleAction}

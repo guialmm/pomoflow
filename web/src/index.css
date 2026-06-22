@@ -6,8 +6,35 @@
 
 body {
   margin: 0;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--color-bg-body, #0f172a);
+  color: var(--color-text-body, #e2e8f0);
   font-family: system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+:root {
+  --color-bg-body: #0f172a;
+  --color-text-body: #e2e8f0;
+}
+
+[data-theme="light"] {
+  --color-bg-body: #f1f5f9;
+  --color-text-body: #0f172a;
+}
+
+/* Light theme overrides — these are outside @layer so they win over Tailwind utilities */
+[data-theme="light"] .bg-slate-900 { background-color: #f8fafc; }
+[data-theme="light"] .bg-slate-900\/80 { background-color: rgb(248 250 252 / 0.9); }
+[data-theme="light"] .bg-slate-800 { background-color: #e2e8f0; }
+[data-theme="light"] .bg-slate-700 { background-color: #cbd5e1; }
+[data-theme="light"] .bg-slate-600 { background-color: #94a3b8; }
+[data-theme="light"] .text-slate-100 { color: #0f172a; }
+[data-theme="light"] .text-slate-200 { color: #1e293b; }
+[data-theme="light"] .text-slate-300 { color: #334155; }
+[data-theme="light"] .text-slate-400 { color: #475569; }
+[data-theme="light"] .text-slate-500 { color: #64748b; }
+[data-theme="light"] .text-slate-600 { color: #94a3b8; }
+[data-theme="light"] .border-slate-800 { border-color: #e2e8f0; }
+[data-theme="light"] .border-slate-700 { border-color: #cbd5e1; }
+[data-theme="light"] .placeholder-slate-500::placeholder { color: #94a3b8; }
+[data-theme="light"] .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); }

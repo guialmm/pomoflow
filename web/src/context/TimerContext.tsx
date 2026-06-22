@@ -121,43 +121,13 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const handleComplete = () => {
-    startedAtRef.current = null
-    const finishedMode = modeRef.current
-    const finishedTotal = totalRef.current
-    setElapsed(finishedTotal)
-    setPhase('done')
-    phaseRef.current = 'done'
-    startAlarm()
-
-    if (finishedMode === 'pomodoro') {
-      saveSession({
-        started_at: sessionStartRef.current,
-        duration_minutes: Math.floor(finishedTotal / 60),
-        elapsed_seconds: finishedTotal,
-        completed: true,
-        task: taskRef.current,
-      })
-      const label = taskRef.current || 'Pomodoro'
-      sendNotification(`${label} complete! Time for a break.`)
-      const newCount = sessionCountRef.current + 1
-      sessionCountRef.current = newCount
-      setSessionCount(newCount)
-    } else {
-      sendNotification('Break over! Ready to focus?')
-    }
-
-    updateTitle(0, finishedMode, 'done')
-    updatePiP()
-  }
-
-  // Classic cycle: 4 pomodoros each with a short break, 4th gets a long break
-  // sessionCount % 4 === 0 means 4th pomodoro just completed → long break
-
-  const startBreak = () => {
+  // Internal: start break without primeAudio (used for auto-start)
+  const _startBreak = () => {
+    if (phaseRef.current !== 'done') return
     stopAlarm()
-    primeAudio()
-    const nextMode = sessionCountRef.current % 4 === 0 ? 'long-break' : 'short-break'
+    const cfg = loadConfig()
+    const n = cfg.pomodoros_until_long_break
+    const nextMode = sessionCountRef.current % n === 0 ? 'long-break' : 'short-break'
     const nextTotal = getTotal(nextMode)
     modeRef.current = nextMode
     totalRef.current = nextTotal
@@ -170,16 +140,53 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     phaseRef.current = 'running'
   }
 
-  const returnToStudy = () => {
+  // Internal: start pomodoro without primeAudio (used for auto-start)
+  const _startPomodoro = () => {
+    if (phaseRef.current !== 'done') return
     stopAlarm()
+    const total = getTotal('pomodoro')
     modeRef.current = 'pomodoro'
-    totalRef.current = getTotal('pomodoro')
+    totalRef.current = total
+    baseElapsedRef.current = 0
+    startedAtRef.current = Date.now()
+    sessionStartRef.current = new Date().toISOString()
     setMode('pomodoro')
     setElapsed(0)
-    baseElapsedRef.current = 0
-    setPhase('idle')
-    phaseRef.current = 'idle'
-    document.title = 'pomoflow'
+    setPhase('running')
+    phaseRef.current = 'running'
+  }
+
+  const handleComplete = () => {
+    startedAtRef.current = null
+    const finishedMode = modeRef.current
+    const finishedTotal = totalRef.current
+    setElapsed(finishedTotal)
+    setPhase('done')
+    phaseRef.current = 'done'
+
+    const cfg = loadConfig()
+    startAlarm(cfg.alarm_sound, cfg.alarm_volume)
+
+    if (finishedMode === 'pomodoro') {
+      saveSession({
+        started_at: sessionStartRef.current,
+        duration_minutes: Math.floor(finishedTotal / 60),
+        elapsed_seconds: finishedTotal,
+        completed: true,
+        task: taskRef.current,
+      })
+      sendNotification(`${taskRef.current || 'Pomodoro'} complete! Time for a break.`)
+      const newCount = sessionCountRef.current + 1
+      sessionCountRef.current = newCount
+      setSessionCount(newCount)
+      if (cfg.auto_start_breaks) setTimeout(_startBreak, 1500)
+    } else {
+      sendNotification('Break over! Ready to focus?')
+      if (cfg.auto_start_pomodoros) setTimeout(_startPomodoro, 1500)
+    }
+
+    updateTitle(0, finishedMode, 'done')
+    updatePiP()
   }
 
   useEffect(() => {
@@ -303,6 +310,37 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     pipWinRef.current?.close()
     pipWinRef.current = null
     pipElRef.current = null
+  }
+
+  // Classic cycle: N pomodoros each with short break; Nth gets long break
+  const startBreak = () => {
+    stopAlarm()
+    primeAudio()
+    const cfg = loadConfig()
+    const n = cfg.pomodoros_until_long_break
+    const nextMode = sessionCountRef.current % n === 0 ? 'long-break' : 'short-break'
+    const nextTotal = getTotal(nextMode)
+    modeRef.current = nextMode
+    totalRef.current = nextTotal
+    baseElapsedRef.current = 0
+    startedAtRef.current = Date.now()
+    sessionStartRef.current = new Date().toISOString()
+    setMode(nextMode)
+    setElapsed(0)
+    setPhase('running')
+    phaseRef.current = 'running'
+  }
+
+  const returnToStudy = () => {
+    stopAlarm()
+    modeRef.current = 'pomodoro'
+    totalRef.current = getTotal('pomodoro')
+    setMode('pomodoro')
+    setElapsed(0)
+    baseElapsedRef.current = 0
+    setPhase('idle')
+    phaseRef.current = 'idle'
+    document.title = 'pomoflow'
   }
 
   const skipBreak = () => {
