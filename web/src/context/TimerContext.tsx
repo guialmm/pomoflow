@@ -14,7 +14,6 @@ interface TimerContextValue {
   total: number
   task: string
   sessionCount: number
-  cycleBreakCount: number
   pipSupported: boolean
   setTask: (t: string) => void
   start: () => void
@@ -72,14 +71,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [elapsed, setElapsed] = useState(0)
   const [task, setTask] = useState('')
   const [sessionCount, setSessionCount] = useState(0)
-  // tracks short breaks started in the current cycle (resets after long break)
-  const [cycleBreakCount, setCycleBreakCount] = useState(0)
 
   const phaseRef = useRef<TimerPhase>('idle')
   const modeRef = useRef<TimerMode>('pomodoro')
   const taskRef = useRef('')
   const sessionCountRef = useRef(0)
-  const cycleBreakCountRef = useRef(0)
   const startedAtRef = useRef<number | null>(null)
   const baseElapsedRef = useRef(0)
   const totalRef = useRef(getTotal('pomodoro'))
@@ -91,7 +87,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   modeRef.current = mode
   taskRef.current = task
   sessionCountRef.current = sessionCount
-  cycleBreakCountRef.current = cycleBreakCount
 
   const pipSupported = 'documentPictureInPicture' in window
 
@@ -156,22 +151,20 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     updatePiP()
   }
 
-  // Cycle: pomodoro → short break → pomodoro → short break → long break → repeat
-  // startBreak always starts a short break; returnToStudy starts long break after 2nd short break
+  // Classic cycle: 4 pomodoros each with a short break, 4th gets a long break
+  // sessionCount % 4 === 0 means 4th pomodoro just completed → long break
 
   const startBreak = () => {
     stopAlarm()
     primeAudio()
-    const newBreakCount = cycleBreakCountRef.current + 1
-    cycleBreakCountRef.current = newBreakCount
-    setCycleBreakCount(newBreakCount)
-    const nextTotal = getTotal('short-break')
-    modeRef.current = 'short-break'
+    const nextMode = sessionCountRef.current % 4 === 0 ? 'long-break' : 'short-break'
+    const nextTotal = getTotal(nextMode)
+    modeRef.current = nextMode
     totalRef.current = nextTotal
     baseElapsedRef.current = 0
     startedAtRef.current = Date.now()
     sessionStartRef.current = new Date().toISOString()
-    setMode('short-break')
+    setMode(nextMode)
     setElapsed(0)
     setPhase('running')
     phaseRef.current = 'running'
@@ -179,32 +172,14 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   const returnToStudy = () => {
     stopAlarm()
-    // After the 2nd short break → start long break automatically
-    if (modeRef.current === 'short-break' && cycleBreakCountRef.current >= 2) {
-      cycleBreakCountRef.current = 0
-      setCycleBreakCount(0)
-      primeAudio()
-      const nextTotal = getTotal('long-break')
-      modeRef.current = 'long-break'
-      totalRef.current = nextTotal
-      baseElapsedRef.current = 0
-      startedAtRef.current = Date.now()
-      sessionStartRef.current = new Date().toISOString()
-      setMode('long-break')
-      setElapsed(0)
-      setPhase('running')
-      phaseRef.current = 'running'
-    } else {
-      // After 1st short break or after long break → idle pomodoro
-      modeRef.current = 'pomodoro'
-      totalRef.current = getTotal('pomodoro')
-      setMode('pomodoro')
-      setElapsed(0)
-      baseElapsedRef.current = 0
-      setPhase('idle')
-      phaseRef.current = 'idle'
-      document.title = 'pomoflow'
-    }
+    modeRef.current = 'pomodoro'
+    totalRef.current = getTotal('pomodoro')
+    setMode('pomodoro')
+    setElapsed(0)
+    baseElapsedRef.current = 0
+    setPhase('idle')
+    phaseRef.current = 'idle'
+    document.title = 'pomoflow'
   }
 
   useEffect(() => {
@@ -320,8 +295,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     baseElapsedRef.current = 0
     modeRef.current = 'pomodoro'
     totalRef.current = getTotal('pomodoro')
-    cycleBreakCountRef.current = 0
-    setCycleBreakCount(0)
     setMode('pomodoro')
     setElapsed(0)
     setPhase('idle')
@@ -336,8 +309,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     stopAlarm()
     startedAtRef.current = null
     baseElapsedRef.current = 0
-    cycleBreakCountRef.current = 0
-    setCycleBreakCount(0)
     modeRef.current = 'pomodoro'
     totalRef.current = getTotal('pomodoro')
     setMode('pomodoro')
@@ -352,7 +323,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   return (
     <TimerContext.Provider value={{
       mode, phase, elapsed, remaining: Math.max(total - elapsed, 0),
-      total, task, sessionCount, cycleBreakCount, pipSupported,
+      total, task, sessionCount, pipSupported,
       setTask, start, pause, resume, stop, skipBreak, startBreak, returnToStudy, togglePiP,
     }}>
       {children}

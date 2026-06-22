@@ -22,7 +22,7 @@ const MODE_COLORS: Record<TimerMode, string> = {
 
 export default function Timer() {
   const {
-    mode, phase, elapsed, remaining, total, task, sessionCount, cycleBreakCount,
+    mode, phase, elapsed, remaining, total, task, sessionCount,
     pipSupported, setTask, start, pause, resume, stop, skipBreak,
     startBreak, returnToStudy, togglePiP,
   } = useTimerContext()
@@ -36,8 +36,9 @@ export default function Timer() {
   const isDone = phase === 'done'
   const isBreak = mode !== 'pomodoro'
 
-  // dots: 2 per cycle (long break every 2 pomodoros)
-  const dotsFilled = sessionCount % 2
+  // dots: 4 per cycle (classic Pomodoro — long break every 4 sessions)
+  const dotsFilled = sessionCount % 4
+  const nextBreakIsLong = !isBreak && isDone && sessionCount % 4 === 0
 
   return (
     <div className="flex flex-col items-center gap-6 py-8 px-4">
@@ -57,7 +58,7 @@ export default function Timer() {
 
       {/* session dots + count */}
       <div className="flex items-center gap-1.5">
-        {Array.from({ length: 2 }).map((_, i) => (
+        {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
             className={`w-2 h-2 rounded-full transition-colors ${i < dotsFilled ? 'bg-cyan-400' : 'bg-slate-700'}`}
@@ -153,32 +154,20 @@ export default function Timer() {
           </>
         )}
 
-        {/* pomodoro done → user starts break manually */}
+        {/* pomodoro done → 4th gets long break, others get short break */}
         {isDone && !isBreak && (
           <button
             onClick={startBreak}
             className="flex items-center gap-2 text-slate-900 font-semibold px-7 py-3 rounded-xl transition"
-            style={{ backgroundColor: '#22c55e' }}
+            style={{ backgroundColor: nextBreakIsLong ? '#a78bfa' : '#22c55e' }}
           >
-            <Coffee size={18} />
-            Start break
+            {nextBreakIsLong ? <Moon size={18} /> : <Coffee size={18} />}
+            {nextBreakIsLong ? 'Start long break' : 'Start break'}
           </button>
         )}
 
-        {/* 2nd short break done → long break is next */}
-        {isDone && mode === 'short-break' && cycleBreakCount >= 2 && (
-          <button
-            onClick={returnToStudy}
-            className="flex items-center gap-2 text-slate-900 font-semibold px-7 py-3 rounded-xl transition"
-            style={{ backgroundColor: '#a78bfa' }}
-          >
-            <Moon size={18} />
-            Start long break
-          </button>
-        )}
-
-        {/* 1st short break done or long break done → back to studying */}
-        {isDone && isBreak && !(mode === 'short-break' && cycleBreakCount >= 2) && (
+        {/* break done → back to studying */}
+        {isDone && isBreak && (
           <button
             onClick={returnToStudy}
             className="flex items-center gap-2 text-slate-900 font-semibold px-7 py-3 rounded-xl transition"
