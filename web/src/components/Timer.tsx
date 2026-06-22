@@ -1,4 +1,4 @@
-import { Play, Pause, Square, SkipForward, PictureInPicture2, Coffee, BookOpen } from 'lucide-react'
+import { Play, Pause, Square, SkipForward, PictureInPicture2, Coffee, BookOpen, Moon } from 'lucide-react'
 import { useTimerContext } from '../context/TimerContext'
 import type { TimerMode } from '../context/TimerContext'
 
@@ -22,7 +22,7 @@ const MODE_COLORS: Record<TimerMode, string> = {
 
 export default function Timer() {
   const {
-    mode, phase, elapsed, remaining, total, task, sessionCount,
+    mode, phase, elapsed, remaining, total, task, sessionCount, cycleBreakCount,
     pipSupported, setTask, start, pause, resume, stop, skipBreak,
     startBreak, returnToStudy, togglePiP,
   } = useTimerContext()
@@ -165,8 +165,20 @@ export default function Timer() {
           </button>
         )}
 
-        {/* break done → user goes back to study manually */}
-        {isDone && isBreak && (
+        {/* 2nd short break done → long break is next */}
+        {isDone && mode === 'short-break' && cycleBreakCount >= 2 && (
+          <button
+            onClick={returnToStudy}
+            className="flex items-center gap-2 text-slate-900 font-semibold px-7 py-3 rounded-xl transition"
+            style={{ backgroundColor: '#a78bfa' }}
+          >
+            <Moon size={18} />
+            Start long break
+          </button>
+        )}
+
+        {/* 1st short break done or long break done → back to studying */}
+        {isDone && isBreak && !(mode === 'short-break' && cycleBreakCount >= 2) && (
           <button
             onClick={returnToStudy}
             className="flex items-center gap-2 text-slate-900 font-semibold px-7 py-3 rounded-xl transition"

@@ -2,9 +2,16 @@ let alarmId: ReturnType<typeof setInterval> | null = null
 let audioCtx: AudioContext | null = null
 let nextNoteTime = 0
 
-function ctx(): AudioContext {
-  if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AudioContext()
+// Call this inside a click handler so Safari allows AudioContext creation
+export function primeAudio() {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new AudioContext()
+  }
   if (audioCtx.state === 'suspended') audioCtx.resume()
+}
+
+function getCtx(): AudioContext {
+  if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AudioContext()
   return audioCtx
 }
 
@@ -31,10 +38,17 @@ function scheduleNotes(ac: AudioContext) {
 }
 
 export function startAlarm() {
-  const ac = ctx()
-  nextNoteTime = ac.currentTime
-  scheduleNotes(ac)
-  alarmId = setInterval(() => scheduleNotes(ctx()), 100)
+  const ac = getCtx()
+  const play = () => {
+    nextNoteTime = ac.currentTime
+    scheduleNotes(ac)
+    alarmId = setInterval(() => scheduleNotes(getCtx()), 100)
+  }
+  if (ac.state === 'running') {
+    play()
+  } else {
+    ac.resume().then(play)
+  }
 }
 
 export function stopAlarm() {
