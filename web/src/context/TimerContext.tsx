@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { loadConfig, saveSession } from '../lib/storage'
+import { startAlarm, stopAlarm } from '../lib/sound'
 
 export type TimerMode = 'pomodoro' | 'short-break' | 'long-break'
 export type TimerPhase = 'idle' | 'running' | 'paused' | 'done'
@@ -20,6 +21,8 @@ interface TimerContextValue {
   resume: () => void
   stop: () => void
   skipBreak: () => void
+  startBreak: () => void
+  returnToStudy: () => void
   togglePiP: () => void
 }
 
@@ -44,9 +47,9 @@ function fmtTime(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-function sendNotification(title: string, body: string) {
+function sendNotification(body: string) {
   if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification(title, { body })
+    new Notification('pomoflow', { body })
   }
 }
 
@@ -87,7 +90,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   const pipSupported = 'documentPictureInPicture' in window
 
-  // Update PiP window content (reads from refs, safe to call from interval)
   const updatePiP = () => {
     const el = pipElRef.current
     if (!el || !pipWinRef.current || pipWinRef.current.closed) return
@@ -110,7 +112,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     `
   }
 
-  // Update tab title
   const updateTitle = (remaining: number, mode: TimerMode, phase: TimerPhase) => {
     if (phase === 'idle') {
       document.title = 'pomoflow'
@@ -120,8 +121,44 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const transitionToBreak = (count: number) => {
-    const nextMode: TimerMode = count % 4 === 0 ? 'long-break' : 'short-break'
+  const handleComplete = () => {
+    startedAtRef.current = null
+    const finishedMode = modeRef.current
+    const finishedTotal = totalRef.current
+    setElapsed(finishedTotal)
+    setPhase('done')
+    phaseRef.current = 'done'
+    startAlarm()
+
+    if (finishedMode === 'pomodoro') {
+      saveSession({
+        started_at: sessionStartRef.current,
+        duration_minutes: Math.floor(finishedTotal / 60),
+        elapsed_seconds: finishedTotal,
+        completed: true,
+        task: taskRef.current,
+      })
+      const label = taskRef.current || 'Pomodoro'
+      sendNotification(`${label} complete! Time for a break.`)
+      const newCount = sessionCountRef.current + 1
+      sessionCountRef.current = newCount
+      setSessionCount(newCount)
+    } else {
+      sendNotification('Break over! Ready to focus?')
+    }
+
+    updateTitle(0, finishedMode, 'done')
+    updatePiP()
+  }
+
+  // Cycle: after every 2 pomodoros → long break, otherwise short break
+  const nextBreakMode = (count: number): TimerMode =>
+    count % 2 === 0 ? 'long-break' : 'short-break'
+
+  // Called when user clicks "Start break" after pomodoro done
+  const startBreak = () => {
+    stopAlarm()
+    const nextMode = nextBreakMode(sessionCountRef.current)
     const nextTotal = getTotal(nextMode)
     modeRef.current = nextMode
     totalRef.current = nextTotal
@@ -134,44 +171,19 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     phaseRef.current = 'running'
   }
 
-  const handleComplete = () => {
-    startedAtRef.current = null
-    const finishedMode = modeRef.current
-    const finishedTotal = totalRef.current
-    setElapsed(finishedTotal)
-    setPhase('done')
-    phaseRef.current = 'done'
-
-    if (finishedMode === 'pomodoro') {
-      saveSession({
-        started_at: sessionStartRef.current,
-        duration_minutes: Math.floor(finishedTotal / 60),
-        elapsed_seconds: finishedTotal,
-        completed: true,
-        task: taskRef.current,
-      })
-      const label = taskRef.current || 'Pomodoro'
-      sendNotification('pomoflow', `${label} complete! Break time.`)
-      const newCount = sessionCountRef.current + 1
-      sessionCountRef.current = newCount
-      setSessionCount(newCount)
-      setTimeout(() => transitionToBreak(newCount), 1500)
-    } else {
-      sendNotification('pomoflow', 'Break over! Ready for the next session?')
-      setTimeout(() => {
-        modeRef.current = 'pomodoro'
-        totalRef.current = getTotal('pomodoro')
-        setMode('pomodoro')
-        setElapsed(0)
-        baseElapsedRef.current = 0
-        setPhase('idle')
-        phaseRef.current = 'idle'
-        document.title = 'pomoflow'
-      }, 1500)
-    }
+  // Called when user clicks "Back to studying" after break done
+  const returnToStudy = () => {
+    stopAlarm()
+    modeRef.current = 'pomodoro'
+    totalRef.current = getTotal('pomodoro')
+    setMode('pomodoro')
+    setElapsed(0)
+    baseElapsedRef.current = 0
+    setPhase('idle')
+    phaseRef.current = 'idle'
+    document.title = 'pomoflow'
   }
 
-  // Single interval — drives everything
   useEffect(() => {
     const id = setInterval(() => {
       if (phaseRef.current !== 'running' || startedAtRef.current === null) return
@@ -188,7 +200,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id)
   }, [])
 
-  // Re-check on tab visibility change
   useEffect(() => {
     const onVisible = () => {
       if (phaseRef.current === 'running' && startedAtRef.current !== null) {
@@ -207,11 +218,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Update title when phase changes to paused/idle
   useEffect(() => {
-    if (phase === 'idle' || phase === 'done') {
-      document.title = 'pomoflow'
-    } else if (phase === 'paused') {
+    if (phase === 'idle' || phase === 'done') document.title = 'pomoflow'
+    else if (phase === 'paused') {
       const remaining = Math.max(totalRef.current - elapsed, 0)
       updateTitle(remaining, mode, 'paused')
     }
@@ -220,36 +229,24 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   const togglePiP = async () => {
     if (!('documentPictureInPicture' in window)) return
-
     if (pipWinRef.current && !pipWinRef.current.closed) {
       pipWinRef.current.close()
       pipWinRef.current = null
       pipElRef.current = null
       return
     }
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pipWin: Window = await (window as any).documentPictureInPicture.requestWindow({
-      width: 240,
-      height: 160,
-    })
+    const pipWin: Window = await (window as any).documentPictureInPicture.requestWindow({ width: 240, height: 160 })
     pipWinRef.current = pipWin
-
     const style = pipWin.document.createElement('style')
     style.textContent = '* { margin:0; padding:0; box-sizing:border-box; } body { height:100vh; overflow:hidden; }'
     pipWin.document.head.appendChild(style)
-
     const el = pipWin.document.createElement('div')
     el.style.cssText = 'height:100%;'
     pipWin.document.body.appendChild(el)
     pipElRef.current = el
-
     updatePiP()
-
-    pipWin.addEventListener('pagehide', () => {
-      pipWinRef.current = null
-      pipElRef.current = null
-    })
+    pipWin.addEventListener('pagehide', () => { pipWinRef.current = null; pipElRef.current = null })
   }
 
   const start = () => {
@@ -279,6 +276,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }
 
   const stop = () => {
+    stopAlarm()
     if (phaseRef.current === 'running' || phaseRef.current === 'paused') {
       const e = startedAtRef.current !== null
         ? baseElapsedRef.current + Math.floor((Date.now() - startedAtRef.current) / 1000)
@@ -308,6 +306,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }
 
   const skipBreak = () => {
+    stopAlarm()
     startedAtRef.current = null
     baseElapsedRef.current = 0
     modeRef.current = 'pomodoro'
@@ -317,9 +316,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setPhase('idle')
     phaseRef.current = 'idle'
     document.title = 'pomoflow'
-    pipWinRef.current?.close()
-    pipWinRef.current = null
-    pipElRef.current = null
   }
 
   const total = totalRef.current
@@ -328,7 +324,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     <TimerContext.Provider value={{
       mode, phase, elapsed, remaining: Math.max(total - elapsed, 0),
       total, task, sessionCount, pipSupported,
-      setTask, start, pause, resume, stop, skipBreak, togglePiP,
+      setTask, start, pause, resume, stop, skipBreak, startBreak, returnToStudy, togglePiP,
     }}>
       {children}
     </TimerContext.Provider>
