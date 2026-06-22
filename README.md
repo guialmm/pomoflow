@@ -1,4 +1,4 @@
-# pomoflow
+# pomoflow 🍅
 
 A Pomodoro timer available as a Python CLI and a web app (PWA). Start a session, label what you are working on, and let pomoflow handle the timing and your session history.
 
