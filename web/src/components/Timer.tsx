@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, Square, SkipForward, PictureInPicture2 } from 'lucide-react'
+import { Play, Pause, Square, SkipForward, PictureInPicture2, Coffee, BookOpen } from 'lucide-react'
 import { useTimerContext } from '../context/TimerContext'
 import type { TimerMode } from '../context/TimerContext'
 
@@ -21,7 +21,11 @@ const MODE_COLORS: Record<TimerMode, string> = {
 }
 
 export default function Timer() {
-  const { mode, phase, elapsed, remaining, total, task, sessionCount, pipSupported, setTask, start, pause, resume, stop, skipBreak, togglePiP } = useTimerContext()
+  const {
+    mode, phase, elapsed, remaining, total, task, sessionCount,
+    pipSupported, setTask, start, pause, resume, stop, skipBreak,
+    startBreak, returnToStudy, togglePiP,
+  } = useTimerContext()
 
   const pct = total > 0 ? elapsed / total : 0
   const radius = 88
@@ -31,6 +35,9 @@ export default function Timer() {
   const isActive = phase === 'running' || phase === 'paused'
   const isDone = phase === 'done'
   const isBreak = mode !== 'pomodoro'
+
+  // dots: 2 per cycle (long break every 2 pomodoros)
+  const dotsFilled = sessionCount % 2
 
   return (
     <div className="flex flex-col items-center gap-6 py-8 px-4">
@@ -48,16 +55,12 @@ export default function Timer() {
         </div>
       )}
 
-      {/* session count */}
+      {/* session dots + count */}
       <div className="flex items-center gap-1.5">
-        {Array.from({ length: 4 }).map((_, i) => (
+        {Array.from({ length: 2 }).map((_, i) => (
           <div
             key={i}
-            className={`w-2 h-2 rounded-full transition-colors ${
-              i < (sessionCount % 4) || (sessionCount % 4 === 0 && sessionCount > 0 && i === 3)
-                ? 'bg-cyan-400'
-                : 'bg-slate-700'
-            }`}
+            className={`w-2 h-2 rounded-full transition-colors ${i < dotsFilled ? 'bg-cyan-400' : 'bg-slate-700'}`}
           />
         ))}
         <span className="text-slate-500 text-xs ml-1">
@@ -118,6 +121,7 @@ export default function Timer() {
             {isBreak ? 'Start break' : 'Start'}
           </button>
         )}
+
         {phase === 'running' && (
           <>
             <button
@@ -127,14 +131,12 @@ export default function Timer() {
               <Pause size={18} />
               Pause
             </button>
-            <button
-              onClick={stop}
-              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-400 px-4 py-3 rounded-xl transition"
-            >
+            <button onClick={stop} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-400 px-4 py-3 rounded-xl transition">
               <Square size={16} />
             </button>
           </>
         )}
+
         {phase === 'paused' && (
           <>
             <button
@@ -145,41 +147,46 @@ export default function Timer() {
               <Play size={18} />
               Resume
             </button>
-            <button
-              onClick={stop}
-              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-400 px-4 py-3 rounded-xl transition"
-            >
+            <button onClick={stop} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-400 px-4 py-3 rounded-xl transition">
               <Square size={16} />
             </button>
           </>
         )}
-        {isDone && isBreak && (
+
+        {/* pomodoro done → user starts break manually */}
+        {isDone && !isBreak && (
           <button
-            onClick={skipBreak}
-            className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 px-5 py-3 rounded-xl transition text-sm"
+            onClick={startBreak}
+            className="flex items-center gap-2 text-slate-900 font-semibold px-7 py-3 rounded-xl transition"
+            style={{ backgroundColor: '#22c55e' }}
           >
-            <SkipForward size={16} />
-            Skip break
+            <Coffee size={18} />
+            Start break
           </button>
         )}
-        {isDone && !isBreak && (
-          <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
-            <RotateCcw size={16} />
-            Starting break…
-          </div>
+
+        {/* break done → user goes back to study manually */}
+        {isDone && isBreak && (
+          <button
+            onClick={returnToStudy}
+            className="flex items-center gap-2 text-slate-900 font-semibold px-7 py-3 rounded-xl transition"
+            style={{ backgroundColor: '#06b6d4' }}
+          >
+            <BookOpen size={18} />
+            Back to studying
+          </button>
         )}
       </div>
 
+      {/* skip break while idle */}
       {isBreak && phase === 'idle' && (
-        <div className="flex gap-2 items-center">
-          <button
-            onClick={skipBreak}
-            className="text-slate-500 hover:text-slate-300 text-sm transition flex items-center gap-1"
-          >
-            <SkipForward size={14} />
-            Skip break
-          </button>
-        </div>
+        <button
+          onClick={skipBreak}
+          className="text-slate-500 hover:text-slate-300 text-sm transition flex items-center gap-1"
+        >
+          <SkipForward size={14} />
+          Skip break
+        </button>
       )}
     </div>
   )
